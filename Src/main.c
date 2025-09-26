@@ -44,7 +44,12 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint8_t rx_byte[2];
+volatile uint8_t rx_count = 0;
+volatile uint8_t rx_done  = 0;
 
+uint8_t pin_set = 1;
+uint32_t power_until  = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,7 +94,8 @@ int main(void)
   MX_GPIO_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UART_Receive_IT(&huart5, rx_byte, 2);
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -99,6 +105,23 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    uint32_t now = HAL_GetTick();
+
+    if (rx_done)
+    {
+      rx_done = 0;
+      power_until = now + 1000; // fast blink for 1 s
+      pin_set=1;
+    }
+
+    if (now < power_until)
+    {
+      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    }
+    else if (pin_set){
+      HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,GPIO_PIN_RESET);
+      pin_set = 0;
+    }
   }
   /* USER CODE END 3 */
 }
@@ -151,7 +174,17 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  // Count only printable data; ignore CR/LF
+  if (rx_byte[1] != '\r' && rx_byte[1] != '\n' && rx_byte[1])
+  {
+      rx_count = 0;
+      rx_done = 1; // signal main loop
+  }
+  // Re-arm for next byte
+  HAL_UART_Receive_IT(&huart5, rx_byte, 2);
+}
 /* USER CODE END 4 */
 
 /**
