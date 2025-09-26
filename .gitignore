@@ -1,0 +1,64 @@
+# -------- OS / Editor noise --------
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.log
+
+# -------- Python (stm32pio tooling) --------
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.pytest_cache/
+
+# -------- PlatformIO --------
+.pio/
+.pioenvs/
+.piolibdeps/
+.clangd
+# Keep these if you actually use them; otherwise ignore:
+# .vscode/
+
+# -------- STM32CubeMX / CubeIDE --------
+# Core project config you SHOULD commit:
+#   *.ioc (pin/clock config), Drivers/, Core/, Middlewares/ (if generated)
+# Ignore IDE/workspace metadata and build outputs:
+.settings/
+.cproject
+.project
+.mxproject
+.launch
+.metadata/
+# If you sometimes open with Eclipse-based IDEs:
+*.ideworkspace
+*.ideproject
+
+# -------- Build artifacts (any toolchain) --------
+# Common build dirs
+build/
+Build/
+Debug/
+Release/
+# Objects, deps, maps
+*.o
+*.d
+*.map
+# Link/Binaries
+*.elf
+*.bin
+*.hex
+*.axf
+*.out
+*.list
+*.lst
+
+# -------- Other tool/CI caches --------
+.cache/
+dist/
+
+# -------- Libraries fetched locally (optional) --------
+lib/*/
+!lib/README*

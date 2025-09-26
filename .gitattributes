@@ -1,0 +1,46 @@
+# Normalize line endings for text
+* text=auto
+
+# Force LF for source and config files (good for cross-platform builds)
+*.c      text eol=lf
+*.h      text eol=lf
+*.cpp    text eol=lf
+*.hpp    text eol=lf
+*.s      text eol=lf
+*.S      text eol=lf
+*.ld     text eol=lf
+*.ioc    text eol=lf
+*.ini    text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+CMakeLists.txt text eol=lf
+Makefile      text eol=lf
+
+# Scripts
+*.sh     text eol=lf
+*.py     text eol=lf
+*.ps1    text eol=crlf
+*.bat    text eol=crlf
+
+# Treat firmware artifacts and media as binary (no diffs)
+*.elf binary
+*.bin binary
+*.hex binary
+*.axf binary
+*.out binary
+*.a   binary
+*.o   binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.pdf binary
+
+# Optional: make diffs nicer for .ioc (INI-like)
+*.ioc diff
+
+# Optional: keep Git from attempting to merge generated lock/binary blobs
+# (uncomment if you add such files)
+# *.lock -merge
