@@ -44,12 +44,21 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t rx_byte[2];
-volatile uint8_t rx_count = 0;
-volatile uint8_t rx_done  = 0;
+// --- Timing constants in milliseconds ---
+#define BASE_PERIOD_MS      (500U)   // mag=1 -> 500ms period (2 Hz)
+#define MIN_PERIOD_MS       (50U)    // clamp so it never goes insane fast
+#define BURST_DURATION_MS   (3000U)  // blink for 3 seconds after each new frame
 
-uint8_t pin_set = 1;
-uint32_t power_until  = 0;
+// UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
+static uint8_t rx_bytes[2];
+
+static volatile uint8_t  rx_done       = 0;   // set in ISR
+static volatile uint16_t last_quad_raw = 0;   // optional: keep the raw word for debug
+
+// Blink timing
+static uint32_t period_ms    = BASE_PERIOD_MS; // use 32-bit for ms math
+static uint32_t last_toggle  = 0;
+static uint32_t burst_until  = 0; 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,7 +69,33 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static inline uint8_t stc_from_TL(uint16_t quad)
+{
+  // quad layout: [TL(0:3)][TR(4:7)][BL(8:11)][BR(12:15)]
+  return (uint8_t)((quad >> 0) & 0x0F);  // TL nibble
+}
 
+static inline uint8_t mag_from_stc(uint8_t stc)
+{
+  // stc bit0 = dir, bits1..3 = mag
+  return (uint8_t)((stc >> 1) & 0x07);   // 0..7 (we'll clamp to 0..5)
+}
+
+static inline uint32_t map_mag_to_period_ms(uint8_t mag)
+{
+  // Use only 0..5 as per spec; mag=0 => LED off (handled in main)
+  if (mag > 5) mag = 5;
+
+  if (mag == 0) {
+    return 0;  // special value meaning "don't blink"
+  }
+
+  // Example mapping: higher mag -> faster blink
+  // period = BASE_PERIOD_MS / mag, clamped to MIN_PERIOD_MS
+  uint32_t p = BASE_PERIOD_MS / (uint32_t)mag;
+  if (p < MIN_PERIOD_MS) p = MIN_PERIOD_MS;
+  return p;
+}
 /* USER CODE END 0 */
 
 /**
@@ -94,7 +129,7 @@ int main(void)
   MX_GPIO_Init();
   MX_UART5_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart5, rx_byte, 2);
+  HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
@@ -105,26 +140,48 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    uint32_t now = HAL_GetTick();
+    const uint32_t now = HAL_GetTick();
 
-    if (rx_done)
-    {
+    // New frame arrived?
+    if (rx_done) {
+      __disable_irq();
       rx_done = 0;
-      power_until = now + 1000; // fast blink for 1 s
-      pin_set=1;
+      // Reconstruct quad word: little-endian (low, then high)
+      uint16_t quad = (uint16_t)rx_bytes[0] | ((uint16_t)rx_bytes[1] << 8);
+      last_quad_raw = quad;
+      __enable_irq();
+
+      // Decode TL nibble -> stc -> magnitude
+      uint8_t stc = stc_from_TL(quad);
+      uint8_t mag = mag_from_stc(stc);
+      if (mag > 5) mag = 5;
+
+      // Compute new period
+      period_ms = map_mag_to_period_ms(mag);
+
+      // Start/extend blink burst window
+      burst_until = now + BURST_DURATION_MS;
+
+      // Optional: if mag == 0, force LED off immediately
+      if (mag == 0) {
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+      }
     }
 
-    if (now < power_until)
-    {
-      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-    }
-    else if (pin_set){
-      HAL_GPIO_WritePin(LD2_GPIO_Port,LD2_Pin,GPIO_PIN_RESET);
-      pin_set = 0;
+    // Blink only during the burst window, and only if period_ms != 0
+    if ((now < burst_until) && (period_ms != 0U)) {
+      if ((now - last_toggle) >= period_ms) {
+        last_toggle = now;
+        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+      }
+    } else {
+      // Outside window or mag==0 -> keep LED off
+      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
     }
   }
-  /* USER CODE END 3 */
 }
+  /* USER CODE END 3 */
+
 
 /**
   * @brief System Clock Configuration
@@ -176,14 +233,12 @@ void SystemClock_Config(void)
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  // Count only printable data; ignore CR/LF
-  if (rx_byte[1] != '\r' && rx_byte[1] != '\n' && rx_byte[1])
-  {
-      rx_count = 0;
-      rx_done = 1; // signal main loop
+  if (huart == &huart5) {
+    // signal main loop that two bytes are ready
+    rx_done = 1;
+    // re-arm for the next 2-byte quad frame
+    HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   }
-  // Re-arm for next byte
-  HAL_UART_Receive_IT(&huart5, rx_byte, 2);
 }
 /* USER CODE END 4 */
 
