@@ -47,7 +47,7 @@
 // --- Timing constants in milliseconds ---
 #define BASE_PERIOD_MS      (500U)   // mag=1 -> 500ms period (2 Hz)
 #define MIN_PERIOD_MS       (50U)    // clamp so it never goes insane fast
-#define BURST_DURATION_MS   (3000U)  // blink for 3 seconds after each new frame
+#define TIMEOUT_MS   (3000U)  // blink for 3 seconds after each new frame
 
 // UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
 static uint8_t rx_bytes[2];
@@ -72,7 +72,12 @@ void SystemClock_Config(void);
 static inline uint8_t stc_from_TL(uint16_t quad)
 {
   // quad layout: [TL(0:3)][TR(4:7)][BL(8:11)][BR(12:15)]
-  return (uint8_t)((quad >> 0) & 0x0F);  // TL nibble
+  uint8_t TL= (uint8_t)((quad >> 0) & 0x0F);  // TL nibble
+  uint8_t TR= (uint8_t)((quad >> 4) & 0x0F);  // TL nibble
+  uint8_t BL= (uint8_t)((quad >> 8) & 0x0F);  // TL nibble
+  uint8_t BR= (uint8_t)((quad >> 12) & 0x0F);  // TL nibble
+
+  return TL;
 }
 
 static inline uint8_t mag_from_stc(uint8_t stc)
@@ -160,7 +165,7 @@ int main(void)
       period_ms = map_mag_to_period_ms(mag);
 
       // Start/extend blink burst window
-      burst_until = now + BURST_DURATION_MS;
+      burst_until = now + TIMEOUT_MS;
 
       // Optional: if mag == 0, force LED off immediately
       if (mag == 0) {
