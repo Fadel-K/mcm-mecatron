@@ -58,7 +58,7 @@ static volatile uint16_t last_quad_raw = 0;   // optional: keep the raw word for
 // Blink timing
 static uint32_t period_ms    = BASE_PERIOD_MS; // use 32-bit for ms math
 static uint32_t last_toggle  = 0;
-static uint32_t burst_until  = 0; 
+static uint32_t power_until  = 0; 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -165,16 +165,16 @@ int main(void)
       period_ms = map_mag_to_period_ms(mag);
 
       // Start/extend blink burst window
-      burst_until = now + TIMEOUT_MS;
+      power_until = now + TIMEOUT_MS;
 
-      // Optional: if mag == 0, force LED off immediately
+      // if mag == 0, force LED off immediately
       if (mag == 0) {
         HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
       }
     }
 
-    // Blink only during the burst window, and only if period_ms != 0
-    if ((now < burst_until) && (period_ms != 0U)) {
+    // Blink only during the power window, and only if period_ms != 0
+    if ((now < power_until) && (period_ms != 0U)) {
       if ((now - last_toggle) >= period_ms) {
         last_toggle = now;
         HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
