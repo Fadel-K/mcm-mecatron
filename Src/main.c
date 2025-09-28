@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -86,21 +87,11 @@ static inline uint8_t mag_from_stc(uint8_t stc)
   return (uint8_t)((stc >> 1) & 0x07);   // 0..7 (we'll clamp to 0..5)
 }
 
-static inline uint32_t map_mag_to_period_ms(uint8_t mag)
+static inline uint8_t dir_from_stc(uint8_t stc)
 {
-  // Use only 0..5 as per spec; mag=0 => LED off (handled in main)
-  if (mag > 5) mag = 5;
-
-  if (mag == 0) {
-    return 0;  // special value meaning "don't blink"
-  }
-
-  // Example mapping: higher mag -> faster blink
-  // period = BASE_PERIOD_MS / mag, clamped to MIN_PERIOD_MS
-  uint32_t p = BASE_PERIOD_MS / (uint32_t)mag;
-  if (p < MIN_PERIOD_MS) p = MIN_PERIOD_MS;
-  return p;
+  return (uint8_t)(stc & 0x01); // Gets direction bit from
 }
+
 /* USER CODE END 0 */
 
 /**
@@ -133,6 +124,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_UART5_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -162,8 +154,8 @@ int main(void)
       if (mag > 5) mag = 5;
 
       // Compute new period
-      period_ms = map_mag_to_period_ms(mag);
-
+      // period_ms = map_mag_to_period_ms(mag);
+      period_ms=5;
       // Start/extend blink burst window
       power_until = now + TIMEOUT_MS;
 
@@ -186,7 +178,7 @@ int main(void)
   }
 }
   /* USER CODE END 3 */
-
+}
 
 /**
   * @brief System Clock Configuration
