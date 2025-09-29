@@ -1,5 +1,20 @@
 # mcm-mecatron
 
+CUBE MX configuration:
+
+A. NVIC Settings
+
+1. TIM2 -> 0 (Speed ramping)
+2. UART5 -> 1 (UART)
+3. SysTick -> 2
+
+B. Timer Settings
+
+1. TIM2 -> PWM output for IN1 and IN2 (21KHz PWM)
+2. TIM4 -> 1 ms global interrupt for speed ramping
+
+
+
 Notes to use the python files:
 
 sniffer:

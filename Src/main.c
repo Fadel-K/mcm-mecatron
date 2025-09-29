@@ -125,6 +125,7 @@ int main(void)
   MX_GPIO_Init();
   MX_UART5_Init();
   MX_TIM2_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
@@ -141,28 +142,21 @@ int main(void)
 
     // New frame arrived?
     if (rx_done) {
-      __disable_irq();
+      HAL_NVIC_DisableIRQ(UART5_IRQn);
       rx_done = 0;
       // Reconstruct quad word: little-endian (low, then high)
       uint16_t quad = (uint16_t)rx_bytes[0] | ((uint16_t)rx_bytes[1] << 8);
       last_quad_raw = quad;
-      __enable_irq();
+      HAL_NVIC_EnableIRQ(UART5_IRQn);
 
       // Decode TL nibble -> stc -> magnitude
       uint8_t stc = stc_from_TL(quad);
       uint8_t mag = mag_from_stc(stc);
       if (mag > 5) mag = 5;
 
-      // Compute new period
-      // period_ms = map_mag_to_period_ms(mag);
-      period_ms=5;
       // Start/extend blink burst window
       power_until = now + TIMEOUT_MS;
 
-      // if mag == 0, force LED off immediately
-      if (mag == 0) {
-        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-      }
     }
 
     // Blink only during the power window, and only if period_ms != 0
@@ -176,7 +170,6 @@ int main(void)
       HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
     }
   }
-}
   /* USER CODE END 3 */
 }
 
@@ -237,6 +230,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   }
 }
+
 /* USER CODE END 4 */
 
 /**
