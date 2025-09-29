@@ -134,6 +134,7 @@ int main(void)
   HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+  HAL_TIM_Base_Start_IT(&htim4);
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
@@ -150,6 +151,8 @@ int main(void)
     if (rx_done) {
       HAL_NVIC_DisableIRQ(UART5_IRQn);
       rx_done = 0;
+      // uint8_t debug[] = "Hello World";
+      // HAL_UART_Transmit_IT(&huart5, debug, 12);
       // Reconstruct quad word: little-endian (low, then high)
       uint16_t quad = (uint16_t)rx_bytes[0] | ((uint16_t)rx_bytes[1] << 8);
       HAL_NVIC_EnableIRQ(UART5_IRQn);
@@ -165,19 +168,13 @@ int main(void)
       // Start/extend blink burst window
       power_until = now + TIMEOUT_MS;
     }
+    
+    //Timeout after 1 Second
+    if (now>power_until){
+      target_pwm=0;
+    }
 
-
-
-    // // Blink only during the power window, and only if period_ms != 0
-    // if ((now < power_until) && (period_ms != 0U)) {
-    //   if ((now - last_toggle) >= period_ms) {
-    //     last_toggle = now;
-    //     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    //   }
-    // } else {
-    //   // Outside window or mag==0 -> keep LED off
-    //   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-    // }
+    __HAL_TIM_SET_COMPARE(&htim2, (pwm_channel==0)? TIM_CHANNEL_2: TIM_CHANNEL_1, 0);
   }
   /* USER CODE END 3 */
 }
@@ -242,12 +239,19 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
+
   if (htim == &htim4){
     // Check if we have reached the required speed and do speed ramping if not
     if (current_pwm < target_pwm){
       current_pwm = (current_pwm+10 > 4095) ? 4095 : current_pwm+10;
-      __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, current_pwm);
+      __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, current_pwm);
     }
+    else if (current_pwm>target_pwm)
+    {
+      current_pwm = (current_pwm-10 < target_pwm) ? target_pwm : current_pwm-10;
+      __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, current_pwm);
+    }
+    
   }
 }
 

@@ -1,5 +1,13 @@
 # mcm-mecatron
 
+NUCLEO_PINOUT
+
+1. PD2 -> UART Rx
+2. PC12 -> UART Tx
+
+3. PA0 -> TIM2_CH1 (IN1)
+4. PA1 -> TIM2_CH2 (IN2)
+
 CUBE MX configuration:
 
 A. NVIC Settings
