@@ -49,6 +49,7 @@
 
 #define TIMEOUT_MS   (1000U)  // TIMEOUT
 #define PWM_RESOLUTION (4096U) //PWM-Resolution
+#define PWM_RAMP_FACTOR (10) //PWM RAMP FACTOR (DON'T MAKE IT UNSIGNED -> LEADS TO WEIRD BUGS)
 
 // UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
 static uint8_t rx_bytes[2];
@@ -160,9 +161,17 @@ int main(void)
       // Decode TL nibble -> stc -> magnitude
       uint8_t stc = stc_from_TL(quad);
       mag = mag_from_stc(stc);
-      dir = dir_from_stc(stc);
+      // dir = dir_from_stc(stc);
       if (mag > 5) mag = 5;
       target_pwm= (mag==5) ? 4095 : 820*mag;
+
+      if (dir != dir_from_stc(stc)) // Ramps down old ch and then ramps up new ch when changing direction
+      {
+        target_pwm=0;
+        if (current_pwm==0){
+          dir = dir_from_stc(stc);
+        }
+      }
 
       pwm_channel = (dir==0) ? TIM_CHANNEL_1 : TIM_CHANNEL_2;
       // Start/extend blink burst window
@@ -174,7 +183,7 @@ int main(void)
       target_pwm=0;
     }
 
-    __HAL_TIM_SET_COMPARE(&htim2, (pwm_channel==0)? TIM_CHANNEL_2: TIM_CHANNEL_1, 0);
+    // __HAL_TIM_SET_COMPARE(&htim2, (pwm_channel==0)? TIM_CHANNEL_2: TIM_CHANNEL_1, 0); // Turn off unused PWM Ch
   }
   /* USER CODE END 3 */
 }
@@ -243,12 +252,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
   if (htim == &htim4){
     // Check if we have reached the required speed and do speed ramping if not
     if (current_pwm < target_pwm){
-      current_pwm = (current_pwm+10 > 4095) ? 4095 : current_pwm+10;
+      current_pwm = (current_pwm+PWM_RAMP_FACTOR > 4095) ? 4095 : current_pwm+PWM_RAMP_FACTOR;
       __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, current_pwm);
     }
     else if (current_pwm>target_pwm)
     {
-      current_pwm = (current_pwm-10 < target_pwm) ? target_pwm : current_pwm-10;
+      current_pwm = (current_pwm-PWM_RAMP_FACTOR < target_pwm) ? target_pwm : current_pwm-PWM_RAMP_FACTOR;
       __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, current_pwm);
     }
     
