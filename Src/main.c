@@ -46,20 +46,24 @@
 
 /* USER CODE BEGIN PV */
 // --- Timing constants in milliseconds ---
-#define BASE_PERIOD_MS      (500U)   // mag=1 -> 500ms period (2 Hz)
-#define MIN_PERIOD_MS       (50U)    // clamp so it never goes insane fast
-#define TIMEOUT_MS   (3000U)  // blink for 3 seconds after each new frame
+
+#define TIMEOUT_MS   (1000U)  // TIMEOUT
+#define PWM_RESOLUTION (4096U) //PWM-Resolution
 
 // UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
 static uint8_t rx_bytes[2];
 
-static volatile uint8_t  rx_done       = 0;   // set in ISR
-static volatile uint16_t last_quad_raw = 0;   // optional: keep the raw word for debug
+static volatile uint8_t  rx_done = 0;   // set in ISR
+static volatile uint16_t current_pwm=0; //Current PWM CCR
+static volatile uint16_t target_pwm=0;  //Target PWM CCR
 
-// Blink timing
-static uint32_t period_ms    = BASE_PERIOD_MS; // use 32-bit for ms math
+// UART decoding
+static uint8_t dir = 0;
+static uint32_t pwm_channel = 0;
+static uint8_t mag = 0;
 static uint32_t last_toggle  = 0;
 static uint32_t power_until  = 0; 
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -128,6 +132,8 @@ int main(void)
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
   /* USER CODE END 2 */
 
@@ -146,29 +152,32 @@ int main(void)
       rx_done = 0;
       // Reconstruct quad word: little-endian (low, then high)
       uint16_t quad = (uint16_t)rx_bytes[0] | ((uint16_t)rx_bytes[1] << 8);
-      last_quad_raw = quad;
       HAL_NVIC_EnableIRQ(UART5_IRQn);
 
       // Decode TL nibble -> stc -> magnitude
       uint8_t stc = stc_from_TL(quad);
-      uint8_t mag = mag_from_stc(stc);
+      mag = mag_from_stc(stc);
+      dir = dir_from_stc(stc);
       if (mag > 5) mag = 5;
+      target_pwm= (mag==5) ? 4095 : 820*mag;
 
+      pwm_channel = (dir==0) ? TIM_CHANNEL_1 : TIM_CHANNEL_2;
       // Start/extend blink burst window
       power_until = now + TIMEOUT_MS;
-
     }
 
-    // Blink only during the power window, and only if period_ms != 0
-    if ((now < power_until) && (period_ms != 0U)) {
-      if ((now - last_toggle) >= period_ms) {
-        last_toggle = now;
-        HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-      }
-    } else {
-      // Outside window or mag==0 -> keep LED off
-      HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-    }
+
+
+    // // Blink only during the power window, and only if period_ms != 0
+    // if ((now < power_until) && (period_ms != 0U)) {
+    //   if ((now - last_toggle) >= period_ms) {
+    //     last_toggle = now;
+    //     HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+    //   }
+    // } else {
+    //   // Outside window or mag==0 -> keep LED off
+    //   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    // }
   }
   /* USER CODE END 3 */
 }
@@ -228,6 +237,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     rx_done = 1;
     // re-arm for the next 2-byte quad frame
     HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
+  }
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
+{
+  if (htim == &htim4){
+    // Check if we have reached the required speed and do speed ramping if not
+    if (current_pwm < target_pwm){
+      current_pwm = (current_pwm+10 > 4095) ? 4095 : current_pwm+10;
+      __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, current_pwm);
+    }
   }
 }
 
