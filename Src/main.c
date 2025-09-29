@@ -181,6 +181,7 @@ int main(void)
     //Timeout after 1 Second
     if (now>power_until){
       target_pwm=0;
+      mag=0;
     }
 
     // __HAL_TIM_SET_COMPARE(&htim2, (pwm_channel==0)? TIM_CHANNEL_2: TIM_CHANNEL_1, 0); // Turn off unused PWM Ch
