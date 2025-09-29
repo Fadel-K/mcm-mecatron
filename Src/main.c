@@ -48,7 +48,7 @@
 // --- Timing constants in milliseconds ---
 
 #define TIMEOUT_MS   (1000U)  // TIMEOUT
-#define PWM_RESOLUTION (4096U) //PWM-Resolution
+#define PWM_RESOLUTION (4095U) //PWM-Resolution
 #define PWM_RAMP_FACTOR (10) //PWM RAMP FACTOR (DON'T MAKE IT UNSIGNED -> LEADS TO WEIRD BUGS)
 
 // UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
@@ -181,7 +181,6 @@ int main(void)
     //Timeout after 1 Second
     if (now>power_until){
       target_pwm=0;
-      mag=0;
     }
 
     // __HAL_TIM_SET_COMPARE(&htim2, (pwm_channel==0)? TIM_CHANNEL_2: TIM_CHANNEL_1, 0); // Turn off unused PWM Ch
@@ -249,6 +248,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
+  if (!mag){// if its mag=0 (breaking)
+    return;
+  }
   if (htim == &htim4){
     // Check if we have reached the required speed and do speed ramping if not
     if (current_pwm < target_pwm){
