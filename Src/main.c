@@ -248,7 +248,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
-
   if (htim == &htim4){
     // Check if we have reached the required speed and do speed ramping if not
     if (current_pwm < target_pwm){
@@ -259,8 +258,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
     {
       current_pwm = (current_pwm-PWM_RAMP_FACTOR < target_pwm) ? target_pwm : current_pwm-PWM_RAMP_FACTOR;
       __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, current_pwm);
-    }
-    
+    }    
   }
 }
 
