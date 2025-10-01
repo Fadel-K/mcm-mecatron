@@ -194,8 +194,10 @@
                 "PLATFORMIO=60118",
                 "STM32F4",
                 "STM32F446xx",
+                "DEBUG",
                 "USE_HAL_DRIVER",
                 "F_CPU=180000000L",
+                "__PLATFORMIO_BUILD_DEBUG__",
                 ""
             ],
             "compilerPath": "/home/fadel/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gcc",
