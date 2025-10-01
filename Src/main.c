@@ -248,9 +248,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
-  if (!mag){// if its mag=0 (breaking)
-    return;
-  }
   if (htim == &htim4){
     // Check if we have reached the required speed and do speed ramping if not
     if (current_pwm < target_pwm){
