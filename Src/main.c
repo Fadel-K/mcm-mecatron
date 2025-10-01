@@ -158,7 +158,7 @@ int main(void)
       uint16_t quad = (uint16_t)rx_bytes[0] | ((uint16_t)rx_bytes[1] << 8);
       HAL_NVIC_EnableIRQ(UART5_IRQn);
 
-      // Decode TL nibble -> stc -> magnitude
+      // Decode TL nibble ->       stc -> magnitude
       uint8_t stc = stc_from_TL(quad);
       mag = mag_from_stc(stc);
       // dir = dir_from_stc(stc);
