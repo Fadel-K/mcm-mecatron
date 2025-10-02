@@ -34,8 +34,10 @@ B. Timer Settings
 
 C. Analog (ADC1)
     1. Continous conversion mode -> Enabled
-    2. DMA Request Added (DMA2 Stream 0)
-    3. DMA Mode -> Circular
+    2. DMA Continous Requests -> Enabled
+    3. Sampling rate -> 84 Cycles
+    4. DMA Request Added (DMA2 Stream 0)
+    5. DMA Mode -> Circular
 
 C. Clock config
     (RCC) HSE -> Crystal / Ceramic Resonator

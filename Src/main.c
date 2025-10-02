@@ -67,6 +67,12 @@ static uint8_t mag = 0;
 static uint32_t last_toggle  = 0;
 static uint32_t power_until  = 0; 
 
+//Voltage regulating
+static volatile uint16_t rd_vmot=0;
+static volatile uint16_t v_mot=0;
+// DMA_HandleTypeDef hdma_adc1;
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,11 +142,12 @@ int main(void)
   MX_TIM4_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_Base_Start_IT(&htim4);
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_ADC_Start_DMA(&hadc1, &rd_vmot, 1); // Here 8 means that 8 conversions (12bit each) take place and are wrapped into one 32 bit variable
+  // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET); // For learning & debugging purposes
+  HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -239,7 +246,7 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) //Parsing UART from arduino
 {
   if (huart == &huart5) {
     // signal main loop that two bytes are ready
@@ -249,7 +256,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   }
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) // Speed ramping tim intrpt
 {
   if (htim == &htim4){
     // Check if we have reached the required speed and do speed ramping if not
@@ -263,6 +270,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
       __HAL_TIM_SET_COMPARE(&htim2, pwm_channel, current_pwm);
     }    
   }
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+  v_mot=rd_vmot; //convert rd_vmot (0-4096) to actual v_mot (0-7.4V)
 }
 
 /* USER CODE END 4 */
