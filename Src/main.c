@@ -53,12 +53,20 @@
 #define PWM_RESOLUTION (4095U) //PWM-Resolution
 #define PWM_RAMP_FACTOR (10) //PWM RAMP FACTOR (DON'T MAKE IT UNSIGNED -> LEADS TO WEIRD BUGS)
 
+#define ADC_RESO (4095U)
+#define V_MOT_MAX (3.3F)
+// #define VOLTAGE_DIVIDER_RATION (0.446F) // R1/(R1+R2)
+// #define ANG_V_MAX (3.3F) //Max voltage read by input pin
+#define V_MOT_RAT (3.3F)
+#define SCALE (V_MOT_RAT/V_MOT_MAX)
+
 // UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
 static uint8_t rx_bytes[2];
 
 static volatile uint8_t  rx_done = 0;   // set in ISR
 static volatile uint16_t current_pwm=0; //Current PWM CCR
 static volatile uint16_t target_pwm=0;  //Target PWM CCR
+static volatile uint16_t max_pwm = 4095; // MAX PWM (For voltage regulating)
 
 // UART decoding
 static uint8_t dir = 0;
@@ -69,7 +77,6 @@ static uint32_t power_until  = 0;
 
 //Voltage regulating
 static volatile uint16_t rd_vmot=0;
-static volatile uint16_t v_mot=0;
 // DMA_HandleTypeDef hdma_adc1;
 
 
@@ -174,7 +181,7 @@ int main(void)
       mag = mag_from_stc(stc);
       // dir = dir_from_stc(stc);
       if (mag > 5) mag = 5;
-      target_pwm= (mag==5) ? 4095 : 820*mag;
+      target_pwm= (mag==5) ? max_pwm : ((uint16_t)(max_pwm/5))*mag;
 
       if (dir != dir_from_stc(stc)) // Ramps down old ch and then ramps up new ch when changing direction
       {
@@ -273,7 +280,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) // Speed ramping tim
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
-  v_mot=rd_vmot; //convert rd_vmot (0-4096) to actual v_mot (0-7.4V)
+  // current_V = (rd_vmot/ADC_RESO)*V_MOT_MAX
+  if (rd_vmot>2925) //convert rd_vmot (0-4095) to actual v_mot (0-7.4V)
+  {
+    max_pwm=V_MOT_RAT/((rd_vmot/ADC_RESO)*V_MOT_MAX) * PWM_RESOLUTION;
+  }
 }
 
 /* USER CODE END 4 */
