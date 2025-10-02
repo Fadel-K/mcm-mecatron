@@ -8,19 +8,39 @@ NUCLEO_PINOUT
 3. PA0 -> TIM2_CH1 (IN1)
 4. PA1 -> TIM2_CH2 (IN2)
 
+5. PC2 -> ADC1_IN12 (For calculating V mot)
+
 CUBE MX configuration:
 
 A. NVIC Settings
 
-1. TIM2 -> 0 (Speed ramping)
+1. TIM4 -> 0 (Speed ramping)
 2. UART5 -> 1 (UART)
 3. SysTick -> 2
 
 B. Timer Settings
 
 1. TIM2 -> PWM output for IN1 and IN2 (21KHz PWM)
-2. TIM4 -> 1 ms global interrupt for speed ramping
+    a. PWM generation in CH1 & CH2
+    b. ARR -> 4095
+    c. PSC -> 0
+    d. Auto-reload preload -> enable
+    e. Calculated frequency of PWM -> ~21kHz
 
+2. TIM4 -> 1 ms global interrupt for speed ramping
+    a. PSC -> 84 
+    b. ARR -> 999
+    c. Calculated timer interrupt frequency -> 1kHz
+
+C. Analog (ADC1)
+    1. Continous conversion mode -> Enabled
+    2. DMA Request Added (DMA2 Stream 0)
+    3. DMA Mode -> Circular
+
+C. Clock config
+    (RCC) HSE -> Crystal / Ceramic Resonator
+    Base clock speed -> 84 MHz
+    APB2 Timer clocks -> 84 MHz
 
 
 Notes to use the python files:
