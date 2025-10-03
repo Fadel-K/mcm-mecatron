@@ -55,10 +55,11 @@
 #define PWM_RAMP_FACTOR (10) //PWM RAMP FACTOR (DON'T MAKE IT UNSIGNED -> LEADS TO WEIRD BUGS)
 
 #define ADC_RESO (4095U)
-#define V_MOT_MAX (5.0F)
+#define V_MOT_MAX (10.0F)
 // #define VOLTAGE_DIVIDER_RATION (0.446F) // R1/(R1+R2)
 // #define ANG_V_MAX (3.3F) //Max voltage read by input pin
 #define V_MOT_RAT (3.3F)
+#define ADC_REF (3.3F)
 #define SCALE (V_MOT_RAT/V_MOT_MAX)
 
 // UART RX buffer for QUAD frame: 2 bytes (little-endian: low, then high)
@@ -77,6 +78,7 @@ static uint32_t last_toggle  = 0;
 static uint32_t power_until  = 0; 
 
 //Voltage regulating
+static volatile uint8_t adc_arriv=0;
 static volatile uint16_t adc_raw=0;
 // DMA_HandleTypeDef hdma_adc1;
 
@@ -86,7 +88,7 @@ static volatile uint16_t adc_raw=0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+static inline void debug(uint16_t n);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -111,6 +113,25 @@ static inline uint8_t mag_from_stc(uint8_t stc)
 static inline uint8_t dir_from_stc(uint8_t stc)
 {
   return (uint8_t)(stc & 0x01); // Gets direction bit from
+}
+
+
+
+static inline void update_max_pwm_from_adc(void) {
+
+  float v_now = (adc_raw * (V_MOT_MAX / ADC_RESO));  // actual VMOT
+  uint16_t new_max = (v_now > V_MOT_RAT)? 
+      (uint16_t)((V_MOT_RAT / v_now) * PWM_RESOLUTION) : PWM_RESOLUTION;
+  if (new_max == 0) new_max = 1;
+  max_pwm = new_max;
+
+  // debug(max_pwm);
+}
+
+static inline void debug(uint16_t n) {
+    char buf[16];
+    int len = snprintf(buf, sizeof buf, "%u\n", (unsigned)n);
+    if (len > 0) HAL_UART_Transmit(&huart5, (uint8_t*)buf, (uint16_t)len, 5);
 }
 
 /* USER CODE END 0 */
@@ -149,10 +170,12 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM4_Init();
   MX_ADC1_Init();
+  MX_TIM8_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
   HAL_TIM_Base_Start_IT(&htim4);
+  HAL_TIM_Base_Start(&htim8);
   HAL_ADC_Start_DMA(&hadc1, &adc_raw, 1); // Here 8 means that 8 conversions (12bit each) take place and are wrapped into one 32 bit variable
   // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET); // For learning & debugging purposes
   HAL_UART_Receive_IT(&huart5, rx_bytes, 2);
@@ -170,13 +193,13 @@ int main(void)
     // New frame arrived?
     if (rx_done) {
       // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-      HAL_NVIC_DisableIRQ(UART5_IRQn);
+      // HAL_NVIC_DisableIRQ(UART5_IRQn);
       rx_done = 0;
       // uint8_t debug[] = "Hello World";
       // HAL_UART_Transmit_IT(&huart5, debug, 12);
       // Reconstruct quad word: little-endian (low, then high)
       uint16_t quad = (uint16_t)rx_bytes[0] | ((uint16_t)rx_bytes[1] << 8);
-      HAL_NVIC_EnableIRQ(UART5_IRQn);
+      // HAL_NVIC_EnableIRQ(UART5_IRQn);
 
       // Decode TL nibble ->       stc -> magnitude
       uint8_t stc = stc_from_TL(quad);
@@ -184,10 +207,8 @@ int main(void)
       // dir = dir_from_stc(stc);
       if (mag > 5) mag = 5;
       target_pwm= (mag==5) ? max_pwm : ((uint16_t)(max_pwm/5))*mag;
-      uint8_t debug[10];
-      sprintf(debug, "%d", target_pwm);
-      debug[5]="\n";
-      HAL_UART_Transmit_IT(&huart5, debug, strlen(debug));
+      
+      // debug(target_pwm);
 
       if (dir != dir_from_stc(stc)) // Ramps down old ch and then ramps up new ch when changing direction
       {
@@ -272,6 +293,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) //Parsing UART from ardu
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) // Speed ramping tim intrpt
 {
   if (htim == &htim4){
+    if (adc_arriv){
+      update_max_pwm_from_adc();
+    }
     // Check if we have reached the required speed and do speed ramping if not
     if (current_pwm < target_pwm){
       current_pwm = (current_pwm+PWM_RAMP_FACTOR > max_pwm) ? max_pwm : current_pwm+PWM_RAMP_FACTOR;
@@ -290,17 +314,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
   // current_V = (adc_raw/ADC_RESO)*V_MOT_MAX
   if (hadc->Instance == ADC1) // convert adc_raw (0-4095) to actual v_mot (0-7.4V)
   {
-    if (adc_raw > (uint16_t)(((float)V_MOT_RAT/(float)V_MOT_MAX) * PWM_RESOLUTION))
-    {
-      // HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
-      // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-      max_pwm = (uint16_t) ((V_MOT_RAT / (((float)adc_raw / (float)ADC_RESO) * V_MOT_MAX)) * PWM_RESOLUTION);
-      
-    }
-    else{
-      max_pwm = PWM_RESOLUTION;
-      // HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
-    }
+    adc_arriv=1;
   }
 }
 
