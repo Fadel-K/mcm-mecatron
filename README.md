@@ -1,6 +1,6 @@
 # mcm-mecatron
 
-##NUCLEO_PINOUT
+## NUCLEO_PINOUT
 
 1. PD2 -> UART Rx
 2. PC12 -> UART Tx
@@ -10,15 +10,15 @@
 
 5. PC2 -> ADC1_IN12 (For calculating V mot)
 
-##CUBE MX configuration:
+## CUBE MX configuration:
 
-###A. NVIC Settings
+### A. NVIC Settings
 
 1. TIM4 -> 0 (Speed ramping)
 2. UART5 -> 1 (UART)
 3. SysTick -> 2
 
-###B. Timer Settings
+### B. Timer Settings
 
 1. TIM2 -> PWM output for IN1 and IN2 (21KHz PWM)
     a. PWM generation in CH1 & CH2
@@ -32,7 +32,7 @@
     b. ARR -> 999
     c. Calculated timer interrupt frequency -> 1kHz
 
-###C. Analog (ADC1)
+### C. Analog (ADC1)
     1. Continous conversion mode -> Enabled
     2. DMA Continous Requests -> Enabled
     3. Sampling rate -> 84 Cycles
@@ -45,9 +45,9 @@ C. Clock config
     APB2 Timer clocks -> 84 MHz
 
 
-##Notes to use the python files:
+## Notes to use the python files:
 
-###sniffer:
+### sniffer:
 
 8E1 (default here)
 ./stc_sniffer.py /dev/ttyUSB0 115200 --parity E --bytesize 8 --stopbits 1
@@ -62,7 +62,7 @@ Quad-word decoding (2 bytes => TL/TR/BL/BR nibbles)
 ./stc_sniffer.py /dev/ttyUSB0 115200 --parity E --quad
 
 
-##sender:
+## sender:
 
 Sweep mag 0..5 at 5 Hz, toggle dir every wrap (8E1 default)
 ./stc_sender.py /dev/ttyUSB0 115200 --mode sweep
