@@ -52,8 +52,9 @@
 
 ## Notes to use the python files:
 
-### sniffer:
+## sniffer:
 
+## Usage
 ./stc_sniffer.py /dev/ttyUSB0 115200 --parity E --bytesize 8 --stopbits 1 --quad
 
 
