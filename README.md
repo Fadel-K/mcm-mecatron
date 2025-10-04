@@ -1,5 +1,5 @@
 # mcm-mecatron
-
+# Cube MX Config
 ## NUCLEO_PINOUT
     
     1. PD2 -> UART Rx
@@ -50,11 +50,11 @@
     APB2 Timer clocks -> 84 MHz
 
 
-## Notes to use the python files:
+# Notes to use the python files:
 
 ## sniffer:
 
-## Usage
+### Usage
     ./stc_sniffer.py /dev/ttyUSB0 115200 --parity E --bytesize 8 --stopbits 1 --quad
 
 
