@@ -60,16 +60,21 @@
 ## sender:
 
 Sweep mag 0..5 at 5 Hz, toggle dir every wrap (8E1 default)
+
 ./stc_sender.py /dev/ttyUSB0 115200 --mode sweep
 
 Fixed: dir=1, mag=3 at 10 Hz with even parity
+
 ./stc_sender.py /dev/ttyUSB0 115200 --mode fixed --dir 1 --mag 3 --hz 10 --parity E
 
 Interactive (type commands: set dir 1 | set mag 4 | send | quad C,D,9,1 | mirror | burst 20 50 | show | quit)
+
 ./stc_sender.py /dev/ttyUSB0 115200 --mode interactive
 
 Quad mirror: send same nibble to TL/TR/BL/BR (2 bytes, low then high)
+
 ./stc_sender.py /dev/ttyUSB0 115200 --quad --mode fixed --dir 0 --mag 5
 
-# Quad with explicit nibbles (hex 0..F) for TL,TR,BL,BR
+Quad with explicit nibbles (hex 0..F) for TL,TR,BL,BR
+
 ./stc_sender.py /dev/ttyUSB0 115200 --quad --mode fixed --nibbles C,D,9,1
