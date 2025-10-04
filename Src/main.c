@@ -55,10 +55,10 @@
 #define PWM_RAMP_FACTOR (10) //PWM RAMP FACTOR (DON'T MAKE IT UNSIGNED -> LEADS TO WEIRD BUGS)
 
 #define ADC_RESO (4095U)
-#define V_MOT_MAX (10.0F)
+#define V_MOT_MAX (7.4F)
 // #define VOLTAGE_DIVIDER_RATION (0.446F) // R1/(R1+R2)
 // #define ANG_V_MAX (3.3F) //Max voltage read by input pin
-#define V_MOT_RAT (3.3F)
+#define V_MOT_RAT (5.0F)
 #define ADC_REF (3.3F)
 #define SCALE (V_MOT_RAT/V_MOT_MAX)
 
@@ -208,7 +208,7 @@ int main(void)
       if (mag > 5) mag = 5;
       target_pwm= (mag==5) ? max_pwm : ((uint16_t)(max_pwm/5))*mag;
       
-      // debug(target_pwm);
+      debug(target_pwm);
 
       if (dir != dir_from_stc(stc)) // Ramps down old ch and then ramps up new ch when changing direction
       {
